@@ -42,28 +42,24 @@ import deployedContracts from "./contracts/hardhat_contracts.json";
 const { ethers } = require("ethers");
 /*
     Welcome to 🏗 scaffold-eth !
-
     Code:
     https://github.com/austintgriffith/scaffold-eth
-
     Support:
     https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA
     or DM @austingriffith on twitter or telegram
-
     You should get your own Infura.io ID and put it in `constants.js`
     (this is your connection to the main Ethereum network for ENS etc.)
-
-
     🌏 EXTERNAL CONTRACTS:
     You can also bring in contract artifacts in `constants.js`
     (and then use the `useExternalContractLoader()` hook!)
 */
 
 /// 📡 What chain are your contracts deployed to?
-const targetNetwork = NETWORKS.localhost; // <------- select your target frontend network (localhost, rinkeby, xdai, mainnet)
+// const targetNetwork = NETWORKS.localhost; // <------- select your target frontend network (localhost, rinkeby, xdai, mainnet)
+const targetNetwork = NETWORKS.rinkeby; // <------- select your target frontend network (localhost, rinkeby, xdai, mainnet)
 
 // 😬 Sorry for all the console logging
-const DEBUG = true;
+const DEBUG = false;
 const NETWORKCHECK = true;
 
 // 🛰 providers
@@ -259,6 +255,11 @@ function App(props) {
 
   const vendorETHBalance = useBalance(localProvider, vendorAddress);
   if (DEBUG) console.log("💵 vendorETHBalance", vendorETHBalance ? ethers.utils.formatEther(vendorETHBalance) : "...");
+
+  const vendorApproval = useContractReader(readContracts, "YourToken", "allowance", [
+    address, vendorAddress
+  ]);
+  console.log("🤏 vendorApproval",vendorApproval)
 
   const vendorTokenBalance = useContractReader(readContracts, "YourToken", "balanceOf", [vendorAddress]);
   console.log("🏵 vendorTokenBalance:", vendorTokenBalance ? ethers.utils.formatEther(vendorTokenBalance) : "...");
@@ -482,6 +483,16 @@ function App(props) {
   console.log("📟 buyTokensEvents:", buyTokensEvents);
 
   const [tokenBuyAmount, setTokenBuyAmount] = useState();
+  const [tokenSellAmount, setTokenSellAmount] = useState();
+  const [isSellAmountApproved, setIsSellAmountApproved] = useState();
+
+  useEffect(()=>{
+    console.log("tokenSellAmount",tokenSellAmount)
+    const tokenSellAmountBN = tokenSellAmount && ethers.utils.parseEther("" + tokenSellAmount)
+    console.log("tokenSellAmountBN",tokenSellAmountBN)
+    setIsSellAmountApproved(vendorApproval && tokenSellAmount && vendorApproval.gte(tokenSellAmountBN))
+  },[tokenSellAmount, readContracts])
+  console.log("isSellAmountApproved",isSellAmountApproved)
 
   const ethCostToPurchaseTokens =
     tokenBuyAmount && tokensPerEth && ethers.utils.parseEther("" + tokenBuyAmount / parseFloat(tokensPerEth));
@@ -605,6 +616,75 @@ function App(props) {
                 </div>
               </Card>
             </div>
+          
+
+            
+            {/* Extra UI for buying the tokens back from the user using "approve" and "sellTokens" */}
+            <Divider />
+            <div style={{ padding: 8, marginTop: 32, width: 300, margin: "auto" }}>
+              <Card title="Approve Tokens">
+                <div style={{ padding: 8 }}>{tokensPerEth && tokensPerEth.toNumber()} tokens per ETH</div>
+
+                <div style={{ padding: 8 }}>
+                  <Input
+                    style={{ textAlign: "center" }}
+                    placeholder={"amount of tokens to sell"}
+                    value={tokenSellAmount}
+                    onChange={e => {
+                      setTokenSellAmount(e.target.value);
+                    }}
+                  />
+                  <Balance balance={ethCostToPurchaseTokens} dollarMultiplier={price} />
+                </div>
+                  <div style={{ padding: 8 }}>
+                    <Button
+                      type={"primary"}
+                      loading={buying}
+                      onClick={async () => {
+                        setBuying(true);
+                        await tx(writeContracts.YourToken.approve(readContracts.Vendor.address, tokenSellAmount && ethers.utils.parseEther(tokenSellAmount)));
+                        setBuying(false);
+                      }}
+                    >
+                      Approve Tokens
+                    </Button>
+                  </div>
+              </Card>
+            </div>
+            <Divider />
+            <div style={{ padding: 8, marginTop: 32, width: 300, margin: "auto" }}>
+              <Card title="Sell Tokens">
+                <div style={{ padding: 8 }}>{tokensPerEth && tokensPerEth.toNumber()} tokens per ETH</div>
+
+                <div style={{ padding: 8 }}>
+                  <Input
+                    style={{ textAlign: "center" }}
+                    placeholder={"amount of tokens to sell"}
+                    value={tokenSellAmount}
+                    onChange={e => {
+                      setTokenSellAmount(e.target.value);
+                    }}
+                  />
+                  <Balance balance={ethCostToPurchaseTokens} dollarMultiplier={price} />
+                </div>
+                  <div style={{ padding: 8 }}>
+                    <Button
+                      type={"primary"}
+                      loading={buying}
+                      onClick={async () => {
+                        setBuying(true);
+                        await tx(writeContracts.Vendor.sellTokens(tokenSellAmount && ethers.utils.parseEther(tokenSellAmount)));
+                        setBuying(false);
+                      }}
+                    >
+                      Sell Tokens
+                    </Button>
+                  </div>
+              </Card>
+            </div>
+            
+            
+
 
             <div style={{ padding: 8, marginTop: 32 }}>
               <div>Vendor Token Balance:</div>
@@ -635,13 +715,9 @@ function App(props) {
             </div>
 
             {/*
-
-
-
                 🎛 this scaffolding is full of commonly used components
                 this <Contract/> component will automatically parse your ABI
                 and give you a form to interact with it locally
-
             <Contract
               name="YourContract"
               signer={userSigner}
@@ -692,7 +768,7 @@ function App(props) {
       </div>
 
       <div style={{ marginTop: 32, opacity: 0.5 }}>
-        Created by <Address value={"Your...address"} ensProvider={mainnetProvider} fontSize={16} />
+        Created by <Address value={"azuolas.eth"} ensProvider={mainnetProvider} fontSize={16} />
       </div>
 
       <div style={{ marginTop: 32, paddingBottom: 128, opacity: 0.5 }}>

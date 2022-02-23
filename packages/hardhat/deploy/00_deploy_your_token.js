@@ -2,6 +2,8 @@
 
 const { ethers } = require("hardhat");
 
+
+
 const localChainId = "31337";
 
 module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
@@ -16,13 +18,17 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
     log: true,
   });
 
+  await sleep(10000); // wait 5 seconds for transaction to propagate
+
   // Todo: transfer tokens to frontend address
   const yourToken = await ethers.getContract("YourToken", deployer);
 
-  // const result = await yourToken.transfer("YOUR_FRONT_END_ADDRESS", ethers.utils.parseEther("1000") );
+
+
+  const result = await yourToken.transfer("0xB789adBb6143038c5048fBF4F410c7E69C6Fced6", ethers.utils.parseEther("1000") );
 
   /*
-    // Getting a previously deployed contract
+    // Getting a previously deployed contract   0xE6d0D802302Dec6CD03dcE8C40d4F31D160D51C0
     const YourContract = await ethers.getContract("YourContract", deployer);
     await YourContract.setPurpose("Hello");
 
@@ -59,12 +65,17 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
 
   // Verify your contracts with Etherscan
   // You don't want to verify on localhost
-  if (chainId !== localChainId) {
-    await run("verify:verify", {
-      address: yourToken.address,
-      contract: "contracts/YourToken.sol:YourToken",
-      contractArguments: [],
-    });
-  }
+  // if (chainId !== localChainId) {
+  //   await run("verify:verify", {
+  //     address: yourToken.address,
+  //     contract: "contracts/YourToken.sol:YourToken",
+  //     contractArguments: [],
+  //   });
+  // }
 };
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 module.exports.tags = ["YourToken"];
